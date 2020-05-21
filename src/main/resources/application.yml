@@ -1,0 +1,52 @@
+server:
+  port: 9005   # 端口号
+spring:
+  application:
+    name: service-zuul   # 网关服务名称
+eureka:
+  client:
+    registry-fetch-interval-seconds: 5    # 获取注册列表的周期
+    service-url:
+#    eureka注册中心地址
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true   # 返回ip地址而不是hostname
+    ip-address: 127.0.0.1      # 本机地址 
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}   #eureka页面显示IP地址：端口号
+zuul:
+  sensitive-headers: 
+  add-host-header: true
+  retryable: true
+  prefix: /api   # 访问网关路径的前缀（在映射路径的前面，一般用于区别开发的版本）
+  routes:
+    zuul-service01:       # 随意写的区分不同映射服务器的名称（只是区分不同的映射服务器）
+      path: /user-service-zuul/**    # 自定义映射服务器路径的名称（相当于key，外部访问这个地址会映射到下面的service-id这个value值。然后从eureka服务列表找到对应服务名称，进而负载均衡的请求一个服务器）
+#      url: http://127.0.0.1:8093  # 这是写的固定映射url，可代替service-id。但是不能实现服务器的负载均衡和高可用，因为总是访问同一服务器
+      service-id: service-user     # eureka注册中心中要映射的服务名称，因为是双层map结构，所以可以实现负载均衡和高可用
+      sensitive-headers: 
+      custom-sensitive-headers: true
+    zuul-service02:               # 搭建另一个映射服务器，这里就简单的映射同一服务了。简单测试下而已
+      path: /company-service-zuul/**
+      service-id: service-company    # 映射服务器名称简单的使用上面的，仅供测试
+      sensitive-headers: 
+      custom-sensitive-headers: true
+#  配置zuul的连接时间，一般不需要配置
+#  host:
+#    max-per-route-connections:
+#    socket-timeout-millis:
+#    connect-timeout-millis:
+#  ignored-services: microservice-comsumer-movie-ribbon-withhystrix    # 这是表示某一个服务不允许代理，上面配置的是需要代理的
+ribbon:
+  ConnectTimeout: 3000 # 连接超时时间（ms），默认值为250ms
+  ReadTimeout: 60000 # 通信超时时间（ms），默认值为2000ms
+  OkToRetryOnAllOperations: true # 是否对所有操作都进行重试
+  MaxAutoRetriesNextServer: 2 # 对同一服务不同实例重试次数（同一服务下集群个数的重试次数）
+  MaxAutoRetries: 2 # 对同一实例重试的次数（单个集群节点服务重试的次数）
+# 开启熔断机制，超过六秒即开启熔断机制，网关内的时间排序：zuul的通信时间 > hystrix熔断时间 > retry重试时间
+hystrix:
+  command:
+    default:
+      execution:
+        isolation:
+          thread:
+            timeoutInMilliseconds: 60000
