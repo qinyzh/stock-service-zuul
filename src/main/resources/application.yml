@@ -19,17 +19,27 @@ zuul:
   retryable: true
   prefix: /api   # 访问网关路径的前缀（在映射路径的前面，一般用于区别开发的版本）
   routes:
-    zuul-service01:       # 随意写的区分不同映射服务器的名称（只是区分不同的映射服务器）
+    zuul-service-user:       # 随意写的区分不同映射服务器的名称（只是区分不同的映射服务器）
       path: /user-service-zuul/**    # 自定义映射服务器路径的名称（相当于key，外部访问这个地址会映射到下面的service-id这个value值。然后从eureka服务列表找到对应服务名称，进而负载均衡的请求一个服务器）
 #      url: http://127.0.0.1:8093  # 这是写的固定映射url，可代替service-id。但是不能实现服务器的负载均衡和高可用，因为总是访问同一服务器
       service-id: service-user     # eureka注册中心中要映射的服务名称，因为是双层map结构，所以可以实现负载均衡和高可用
       sensitive-headers: 
       custom-sensitive-headers: true
-    zuul-service02:               # 搭建另一个映射服务器，这里就简单的映射同一服务了。简单测试下而已
+    zuul-service-company:               
       path: /company-service-zuul/**
-      service-id: service-company    # 映射服务器名称简单的使用上面的，仅供测试
+      service-id: service-company    
       sensitive-headers: 
       custom-sensitive-headers: true
+    zuul-service-importdata:              
+      path: /importdata-service-zuul/**
+      service-id: service-importdata    
+      sensitive-headers: 
+      custom-sensitive-headers: true  
+    zuul-service-exchange:              
+      path: /exchange-service-zuul/**
+      service-id: service-exchange    
+      sensitive-headers: 
+      custom-sensitive-headers: true   
 #  配置zuul的连接时间，一般不需要配置
 #  host:
 #    max-per-route-connections:

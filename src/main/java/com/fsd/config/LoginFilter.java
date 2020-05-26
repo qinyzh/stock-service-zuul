@@ -2,10 +2,19 @@ package com.fsd.config;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.fsd.utils.JwtTokenUtils;
 import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
 import com.netflix.zuul.exception.ZuulException;
@@ -25,6 +34,14 @@ import com.netflix.zuul.exception.ZuulException;
  *
  */
 public class LoginFilter extends ZuulFilter{
+	private static final String LOGIN_URI = "/auth/login";
+	private static final String REGISTER_URI = "/auth/register";
+	
+	private static final String TOKEN_HEADER = "X-Authorization";
+	
+	@Autowired
+	private RestTemplate restTemplate;
+
 
 	@Override
 	public Object run() throws ZuulException {
@@ -35,23 +52,48 @@ public class LoginFilter extends ZuulFilter{
         HttpServletRequest request = currentContext.getRequest();
         String url = request.getRequestURL().toString();
         // 3) 从请求中获取token
-        String token = request.getHeader("X-Authorization");
+        String token = request.getHeader(TOKEN_HEADER);
         System.out.println("token:"+token);
+        if(url.contains(LOGIN_URI)||url.contains(REGISTER_URI)||url.contains("auth/user")||url.contains("file/download")){
+			currentContext.setSendZuulResponse(true);
+			currentContext.setResponseStatusCode(200);
+			currentContext.set("isSuccess", true);
+			return null;
+		}
         // 4) 判断（如果没有token，认为用户还没有登录，返回401状态码）
         if(token == null || "".equals(token.trim())){
-        	// 如果是登录链接，则发起请求
-    		if(url.contains("/auth/login")||url.contains("/auth/register")){
-    			currentContext.setSendZuulResponse(true);
-    			currentContext.setResponseStatusCode(200);
-    			currentContext.set("isSuccess", true);
-    			return null;
-    		}
+        	// 如果是登录和注册链接，不需要校验token，发起请求		
             // 没有token，认为登录校验失败，进行拦截
             currentContext.setSendZuulResponse(false);
             // 返回401状态码。也可以考虑重定向到登录页
             currentContext.setResponseStatusCode(HttpStatus.UNAUTHORIZED.value());
+            currentContext.setResponseBody("Authorization token is empty.");
         }else {
-        	currentContext.addZuulRequestHeader("X-Authorization", token);
+            try {
+	        	//有token,JWT验证
+            	String token_f = token.replace(JwtTokenUtils.TOKEN_PREFIX, "");
+	        	String username = JwtTokenUtils.getUsername(token_f);
+	        	//token值有问题拒绝请求
+	            if (StringUtils.isEmpty(username)) {
+	            	currentContext.setSendZuulResponse(false);
+	            	currentContext.setResponseStatusCode(HttpStatus.UNAUTHORIZED.value());
+	            	currentContext.setResponseBody("Token auth fail");
+	                return null;
+	            }
+	          //token过期拒绝请求
+	            else if (JwtTokenUtils.isExpiration(token_f)) {
+	            	currentContext.setSendZuulResponse(false);
+	            	currentContext.setResponseStatusCode(HttpStatus.UNAUTHORIZED.value());
+	            	currentContext.setResponseBody("Token expired");
+	                return null;
+	            }
+	        	currentContext.addZuulRequestHeader(TOKEN_HEADER, token);
+            }catch (Exception e) {
+                currentContext.setSendZuulResponse(false);
+                currentContext.setResponseStatusCode(HttpStatus.UNAUTHORIZED.value());
+                currentContext.setResponseBody("token auth fail");
+            }
+        	
         }
 
         // 如果校验通过，可以考虑吧用户信息放入上下文，继续向后执行

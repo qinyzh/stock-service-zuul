@@ -17,7 +17,7 @@ public class CorsConfig {
         final CorsConfiguration config=new CorsConfiguration();
         config.setAllowCredentials(true);
         config.setAllowedHeaders(Arrays.asList("*"));
-        config.setAllowedOrigins(Arrays.asList("*"));  //http:www.a.com
+        config.setAllowedOrigins(Arrays.asList("*")); 
         config.setAllowedMethods(Arrays.asList("*"));
         config.addExposedHeader("token");
         config.setMaxAge(18000L);
